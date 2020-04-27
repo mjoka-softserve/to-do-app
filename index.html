@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>To do list</title>
+        <style>
+            ul {
+                list-style: none;
+                padding: 0;
+            }
+
+            li {
+                display: flex;
+                align-items: center;
+            }
+
+            input[type="text"] {
+                border: 1px solid lightslategray;
+                height: 28px;
+                border-radius: 4px;
+            }
+            button {
+                padding: 6px 12px;
+                background: lightsalmon;
+                height: 32px;
+                color: #fff;
+                border-radius: 4px;
+                margin: 0 10px;
+            }
+
+            .remove {
+                background: white;
+                border-color: grey;
+                color: grey;
+            }
+
+            button:disabled {
+                opacity: 0.8;
+            }
+        </style>
+    </head>
+    <body>
+        <header></header>
+        <main>
+            <div id="app">
+                <h1> To Do List </h1>
+                <br />
+                <span v-if="hasError" class="error">
+                    Cannot connect with server
+                </span>
+                <div v-if="!toDoList.length">
+                    No task added to list
+                </div>
+                <ul class="to-do-list" v-else>
+                    <li v-for="(item, i) in toDoList" :key="item.id">
+                        <input type="checkbox" v-model="item.done" />
+                        <p>
+                            {{ item.title }} 
+                        </p>
+                        <button @click="updateToDoItem(item)">
+                            Update 
+                        </button>
+                        <button class="remove" @click="deleteToDoItem(i, item.id)"> 
+                            X 
+                        </button>
+                    </li>
+                </ul>
+                <div class="to-do-list__add">
+                    <input type="text" v-model="newToDo">
+                    <button type="button" @click="addNewToDoItem" :disabled="isLoading || !newToDo">
+                        Add new TODO
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+        <script>
+            
+            const app = new Vue({
+                el: '#app',
+
+                data: {
+                    toDoList: [],
+                    toDoListUrl: "http://www.aplaline.com:2002/todos",
+                    hasError: false,
+                    newToDo: '',
+                    isLoading: false,
+                },
+
+                created () {
+                    this.getToDoListItems()
+                },
+
+                methods: {
+
+                    setIsLoadingValue(value) {
+                        this.isLoading = value
+                    },
+
+                    manageErrorValue (value) {
+                        this.hasError = value
+                    },
+
+                    createConfig (method, data = {}) {
+                        return {
+                            method,
+                            headers: {
+                                'Content-type': 'application/json; charset=UTF-8'
+                            },
+                            body: JSON.stringify(data)
+                        }
+                    },
+
+                    async apiDefaultService (config = {}, url = this.toDoListUrl, succesFunction = null) {
+                        this.setIsLoadingValue(true)
+                        this.manageErrorValue(false)
+
+                        const response = await fetch(url, config)
+                        const responseResult = response.json()
+
+                        responseResult
+                            .then(data => {
+                                succesFunction && succesFunction(data)
+                            })
+                            .catch(() => {
+                                this.manageErrorValue(true)
+                            })
+                            .finally(() => {
+                                this.setIsLoadingValue(false)
+                            }) 
+                    },
+
+                    getToDoListItems () {
+                        const assignItems = (items) => {
+                            this.toDoList = items
+                        }
+
+                        this.apiDefaultService({}, this.toDoListUrl, assignItems)
+                    },
+
+                    addNewToDoItem () {
+                        const newAddToDo = {
+                            id: `mj-${Date.now()}`,
+                            title: this.newToDo,
+                            done: false,
+                        }
+
+                        const config = this.createConfig('POST', newAddToDo)
+
+                        const addNewItem = () => {
+                            this.toDoList.push(newAddToDo)
+                            this.newToDo = ''
+                        }
+
+                        this.apiDefaultService(config, this.toDoListUrl, addNewItem)
+
+                    },
+
+                    updateToDoItem (item) {
+                        const config = this.createConfig('PUT', item)
+
+                        this.apiDefaultService(config, `${this.toDoListUrl}/${item.id}`)
+                    },
+
+                    deleteToDoItem (index, id) {
+                        const config = this.createConfig('DELETE')
+
+                        const deleteValue = () => {
+                            this.$delete(this.toDoList, index)
+                        }
+
+                        this.apiDefaultService(config, `${this.toDoListUrl}/${id}`, deleteValue)
+                    }
+                },
+            })
+        </script>
+    </body>
+</html>
